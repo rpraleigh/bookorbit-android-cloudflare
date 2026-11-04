@@ -4,6 +4,12 @@ Native Kotlin / Jetpack Compose client for a self-hosted
 [BookOrbit](https://github.com/bookorbit/bookorbit) server. This is a **standalone Gradle project** —
 open this repository's root directly in Android Studio.
 
+> **This is a fork.** "BookOrbit PRM-CF" is [deranjer/bookorbit-android](https://github.com/deranjer/bookorbit-android)
+> plus optional **Cloudflare Access service-token** support, so the app can reach a BookOrbit server that is
+> published behind Cloudflare Access. It installs next to the original app (application id
+> `com.bookorbit.cloudflare`) and keeps the upstream AGPL-3.0 license (see [LICENSE](LICENSE)). Documentation
+> below the Cloudflare sections is upstream's and may still refer to the original app and package names.
+
 > User-facing docs: **https://deranjer.github.io/bookorbit-android/** (source in [`website/`](website/)).
 > Privacy policy: **https://deranjer.github.io/bookorbit-android/privacy.html**.
 > Planned work: see [`ROADMAP.md`](ROADMAP.md).
@@ -14,6 +20,65 @@ open this repository's root directly in Android Studio.
 > audiobook player (with sleep timer and Chromecast), and downloads/offline. See
 > [Architecture & conventions](#architecture--conventions) below, the
 > [Cross-repo couplings](#cross-repo-couplings) section, and [`ROADMAP.md`](ROADMAP.md) for what's next.
+
+## Cloudflare Access support
+
+### What it adds
+
+- Optional **Client ID** and **Client Secret** fields on the server-setup screen. Leave them empty if your
+  server is not behind Cloudflare Access; the app then behaves like upstream.
+- The app sends `CF-Access-Client-Id` and `CF-Access-Client-Secret` on every request to your server: API calls,
+  token refresh, cover images, audiobook streaming and Chromecast.
+- The secret is stored in the app's encrypted storage. Nothing secret is built into the APK.
+
+### Set up Cloudflare (once)
+
+1. In Cloudflare Zero Trust, create a **service token** and keep its Client ID and Client Secret.
+2. In the Access application that protects your BookOrbit hostname, add a policy whose action is
+   **Service Auth** and that includes the token. A normal Allow policy does not accept service tokens.
+
+### Set up the app
+
+1. Enter your server address, starting with `https://`.
+2. Enter the Client ID and Client Secret, then tap **Connect**.
+3. Sign in with your BookOrbit username and password.
+
+### Behavior worth knowing
+
+- **Headers go to your server only.** They are attached only to requests for the configured host, only over
+  HTTPS, and the host is checked again on every redirect, so the secret is never sent to another host or in
+  clear text.
+- **`http://` addresses are upgraded when the server redirects.** If you enter `http://host` and the server
+  answers from `https://host` (same host and path), the app saves the HTTPS address. Without this, the redirect
+  turns the sign-in POST into a GET and sign-in fails. A plain-HTTP server that does not redirect (for example on
+  a LAN) works as before.
+- **Clear errors.** The app tells you when Cloudflare Access blocked the request (no token) or rejected it
+  (bad or expired token), and only reports "Invalid username or password" for an HTTP 401 from the server.
+- **Native reader only.** The server-hosted web reader runs in a WebView that cannot send these headers, so the
+  app always uses its native reader when a service token is configured.
+- **No SSO sign-in behind Access.** Username and password sign-in works. The OIDC browser sign-in cannot carry
+  the service token, so it is not supported when Access covers the whole hostname.
+
+### Build this fork
+
+The project has two flavors (`full` and `fdroid`), so use flavor-qualified task names. On Windows use
+`gradlew.bat` instead of `./gradlew`.
+
+```bash
+./gradlew :app:testFullDebugUnitTest :app:assembleFullDebug
+adb install -r app/build/outputs/apk/full/debug/app-full-debug.apk
+```
+
+For a signed release APK, create a signing key with `keytool`, copy `app/keystore.properties.example` to
+`app/keystore.properties` (it is git-ignored) and fill in your values. Use an **absolute path** for
+`storeFile`. Then:
+
+```bash
+./gradlew :app:assembleFullRelease
+```
+
+The signed file is `app/build/outputs/apk/full/release/app-full-release.apk`. Keep the key file and its
+password backed up: updates must be signed with the same key.
 
 ## Prerequisites
 
