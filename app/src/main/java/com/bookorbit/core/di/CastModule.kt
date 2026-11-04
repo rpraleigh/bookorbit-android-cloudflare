@@ -2,6 +2,7 @@ package com.bookorbit.core.di
 
 import com.bookorbit.core.network.AuthInterceptor
 import com.bookorbit.core.network.CastUpstreamClient
+import com.bookorbit.core.network.CloudflareAccessInterceptor
 import com.bookorbit.core.network.TokenAuthenticator
 import com.bookorbit.core.network.UserCaTrust
 import dagger.Module
@@ -25,7 +26,9 @@ object CastModule {
         authenticator: TokenAuthenticator,
         logging: HttpLoggingInterceptor,
         userCaTrust: UserCaTrust,
+        cloudflareAccess: CloudflareAccessInterceptor,
     ): OkHttpClient = userCaTrust.applyTo(OkHttpClient.Builder())
+        .addNetworkInterceptor(cloudflareAccess)
         .addInterceptor(authInterceptor)
         .addInterceptor(logging)
         .authenticator(authenticator)

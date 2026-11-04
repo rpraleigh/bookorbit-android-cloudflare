@@ -9,6 +9,7 @@ import com.bookorbit.core.model.OidcCallbackResponse
 import com.bookorbit.core.model.OidcProviderPublic
 import com.bookorbit.core.model.SetupStatus
 import com.bookorbit.core.network.ApiService
+import retrofit2.HttpException
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -31,6 +32,17 @@ class AuthRepository @Inject constructor(
 
     /** Probes the configured server. Throws if unreachable / not a BookOrbit server. */
     suspend fun setupStatus(): SetupStatus = api.getSetupStatus()
+
+    /**
+     * Probes the configured server like [setupStatus], and returns the HTTPS server URL to adopt when
+     * a plain `http://` address was redirected to `https://` (see [httpsUpgradeOf]); null otherwise.
+     */
+    suspend fun probeServer(): String? {
+        val response = api.getSetupStatusResponse()
+        if (!response.isSuccessful) throw HttpException(response)
+        val configured = session.serverUrl ?: return null
+        return httpsUpgradeOf(configured, response.raw().request.url)
+    }
 
     suspend fun login(username: String, password: String) {
         val result = api.login(LoginRequest(username.trim(), password))

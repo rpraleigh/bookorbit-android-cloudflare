@@ -7,11 +7,15 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.bookorbit.core.auth.SessionManager
 import com.bookorbit.core.model.OidcProviderPublic
+import com.bookorbit.core.network.CloudflareAccessException
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import retrofit2.HttpException
+import java.io.IOException
 import javax.inject.Inject
 
 @HiltViewModel
@@ -46,11 +50,28 @@ class LoginViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 repo.login(username, password)
-            } catch (_: Exception) {
-                _ui.update { it.copy(error = UiText.of(R.string.login_err_invalid)) }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _ui.update { it.copy(error = loginError(e)) }
             } finally {
                 _ui.update { it.copy(submitting = false) }
             }
+        }
+    }
+
+    /** Only a 401 means bad credentials; everything else is reported as what it actually is. */
+    private fun loginError(e: Exception): UiText {
+        val causes = generateSequence<Throwable>(e) { it.cause }.toList()
+        val access = causes.filterIsInstance<CloudflareAccessException>().firstOrNull()
+        val http = causes.filterIsInstance<HttpException>().firstOrNull()
+        return when {
+            access != null && access.credentialsConfigured -> UiText.of(R.string.server_err_cloudflare_rejected)
+            access != null -> UiText.of(R.string.server_err_cloudflare_required)
+            http != null && http.code() == 401 -> UiText.of(R.string.login_err_invalid)
+            http != null -> UiText.of(R.string.login_err_http, http.code())
+            causes.any { it is IOException } -> UiText.of(R.string.server_err_connect)
+            else -> UiText.of(R.string.login_err_unexpected)
         }
     }
 

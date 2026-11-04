@@ -44,7 +44,9 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.bookorbit"
+        // Separate app from upstream BookOrbit (com.bookorbit): installs side by side with it.
+        // `namespace` stays com.bookorbit so the source packages and R class are unchanged.
+        applicationId = "com.bookorbit.cloudflare"
         minSdk = 26
         targetSdk = 36
         // versionCode/versionName are bumped automatically by a companion step in

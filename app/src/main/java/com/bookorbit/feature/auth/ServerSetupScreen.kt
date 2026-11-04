@@ -31,6 +31,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.ImeAction
@@ -54,7 +55,11 @@ fun ServerSetupScreen(
     val certificateHost = UserCaSettings.httpsHost(url)
     var trustUserCas by remember(certificateHost) { mutableStateOf(vm.trustsUserCas(url)) }
 
-    fun submit() = vm.connect(url, trustUserCas, onConnected)
+    var cfClientId by rememberSaveable { mutableStateOf(vm.currentCfClientId.orEmpty()) }
+    // Never saved to instance state; the stored secret is kept when this stays blank.
+    var cfClientSecret by remember { mutableStateOf("") }
+
+    fun submit() = vm.connect(url, trustUserCas, cfClientId, cfClientSecret, onConnected)
 
     Column(
         modifier = modifier
@@ -118,6 +123,50 @@ fun ServerSetupScreen(
                 style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
             )
         }
+
+        Spacer(Modifier.height(16.dp))
+        Text(
+            stringResource(R.string.cf_access_title),
+            style = androidx.compose.material3.MaterialTheme.typography.titleSmall,
+        )
+        Text(
+            stringResource(R.string.cf_access_desc),
+            style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
+            color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Spacer(Modifier.height(8.dp))
+        OutlinedTextField(
+            value = cfClientId,
+            onValueChange = { cfClientId = it },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+            enabled = !ui.loading,
+            label = { Text(stringResource(R.string.cf_access_client_id)) },
+            keyboardOptions = KeyboardOptions(
+                keyboardType = KeyboardType.Ascii,
+                imeAction = ImeAction.Next,
+                autoCorrectEnabled = false,
+            ),
+        )
+        Spacer(Modifier.height(8.dp))
+        OutlinedTextField(
+            value = cfClientSecret,
+            onValueChange = { cfClientSecret = it },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+            enabled = !ui.loading,
+            label = { Text(stringResource(R.string.cf_access_client_secret)) },
+            placeholder = if (vm.currentCfClientId != null) {
+                { Text(stringResource(R.string.cf_access_secret_keep)) }
+            } else null,
+            visualTransformation = PasswordVisualTransformation(),
+            keyboardOptions = KeyboardOptions(
+                keyboardType = KeyboardType.Password,
+                imeAction = ImeAction.Go,
+                autoCorrectEnabled = false,
+            ),
+            keyboardActions = KeyboardActions(onGo = { submit() }),
+        )
 
         ui.error?.let {
             Spacer(Modifier.height(12.dp))

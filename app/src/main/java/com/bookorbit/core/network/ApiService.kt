@@ -79,6 +79,10 @@ interface ApiService {
     @GET("auth/setup-status")
     suspend fun getSetupStatus(): com.bookorbit.core.model.SetupStatus
 
+    /** Same endpoint, but keeps the raw response so the caller can see the final URL after redirects. */
+    @GET("auth/setup-status")
+    suspend fun getSetupStatusResponse(): Response<com.bookorbit.core.model.SetupStatus>
+
     @GET("app-settings/oidc/providers/public")
     suspend fun getPublicOidcProviders(): List<OidcProviderPublic>
 

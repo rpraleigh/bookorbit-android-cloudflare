@@ -32,7 +32,9 @@ class ReaderHostViewModel @Inject constructor(
     private val bookId = checkNotNull(savedStateHandle.get<Int>("id"))
     private val accountId = session.currentUser?.id
     val preferences = combine(settings.readerInterface, settings.readingFullscreen) { mode, fullscreen ->
-        ReadingPreferences(mode, fullscreen)
+        // The server-hosted reader runs in a WebView that cannot send the Cloudflare Access headers,
+        // so behind Access the native reader is always used.
+        ReadingPreferences(if (session.cloudflareAccessEnabled) ReaderInterface.APP else mode, fullscreen)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     suspend fun prepare(kind: ReaderKind): ServerReaderPolicy {

@@ -7,6 +7,7 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.okhttp.OkHttpDataSource
+import com.bookorbit.core.network.CloudflareAccessInterceptor
 import com.bookorbit.core.network.UserCaTrust
 import okhttp3.OkHttpClient
 import androidx.media3.exoplayer.ExoPlayer
@@ -38,10 +39,13 @@ object PlayerModule {
         @ApplicationContext context: Context,
         session: SessionManager,
         userCaTrust: UserCaTrust,
+        cloudflareAccess: CloudflareAccessInterceptor,
     ): MediaSource.Factory {
         // OkHttp (not the platform HttpsURLConnection DefaultHttpDataSource uses) so streaming honours
         // the opt-in user-CA trust like every other request.
-        val streamClient = userCaTrust.applyTo(OkHttpClient.Builder()).build()
+        val streamClient = userCaTrust.applyTo(OkHttpClient.Builder())
+            .addNetworkInterceptor(cloudflareAccess)
+            .build()
         // Per-request auth header so streaming survives token refresh.
         val httpFactory = DataSource.Factory {
             val token = session.accessToken

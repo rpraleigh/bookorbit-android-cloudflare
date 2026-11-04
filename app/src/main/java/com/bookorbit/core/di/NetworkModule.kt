@@ -6,6 +6,7 @@ import coil.ImageLoader
 import com.bookorbit.core.network.ApiService
 import com.bookorbit.core.network.AuthInterceptor
 import com.bookorbit.core.network.BaseUrlInterceptor
+import com.bookorbit.core.network.CloudflareAccessInterceptor
 import com.bookorbit.core.network.ImageClient
 import com.bookorbit.core.network.MainClient
 import com.bookorbit.core.network.PersistentCookieJar
@@ -57,7 +58,9 @@ object NetworkModule {
         cookieJar: PersistentCookieJar,
         logging: HttpLoggingInterceptor,
         userCaTrust: UserCaTrust,
+        cloudflareAccess: CloudflareAccessInterceptor,
     ): OkHttpClient = userCaTrust.applyTo(OkHttpClient.Builder())
+        .addNetworkInterceptor(cloudflareAccess)
         .cookieJar(cookieJar)
         .addInterceptor(logging)
         .connectTimeout(15, TimeUnit.SECONDS)
@@ -74,7 +77,9 @@ object NetworkModule {
         authenticator: TokenAuthenticator,
         logging: HttpLoggingInterceptor,
         userCaTrust: UserCaTrust,
+        cloudflareAccess: CloudflareAccessInterceptor,
     ): OkHttpClient = userCaTrust.applyTo(OkHttpClient.Builder())
+        .addNetworkInterceptor(cloudflareAccess)
         .cookieJar(cookieJar)
         .addInterceptor(baseUrlInterceptor)
         .addInterceptor(authInterceptor)
@@ -94,7 +99,9 @@ object NetworkModule {
         authInterceptor: AuthInterceptor,
         logging: HttpLoggingInterceptor,
         userCaTrust: UserCaTrust,
+        cloudflareAccess: CloudflareAccessInterceptor,
     ): OkHttpClient = userCaTrust.applyTo(OkHttpClient.Builder())
+        .addNetworkInterceptor(cloudflareAccess)
         .cookieJar(cookieJar)
         .addInterceptor(authInterceptor)
         .addInterceptor(logging)

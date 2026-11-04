@@ -90,5 +90,7 @@ class SecureStorage internal constructor(
         const val KEY_USER = "user"
         const val KEY_COOKIES = "auth_cookies"
         const val KEY_DATA_OWNER = "data_owner"
+        const val KEY_CF_CLIENT_ID = "cf_access_client_id"
+        const val KEY_CF_CLIENT_SECRET = "cf_access_client_secret"
     }
 }

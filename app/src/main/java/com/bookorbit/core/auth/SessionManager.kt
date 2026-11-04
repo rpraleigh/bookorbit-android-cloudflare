@@ -42,6 +42,18 @@ class SessionManager @Inject constructor(
     var serverUrl: String? = null
         private set
 
+    /** Cloudflare Access service token for the configured server; both null when Access is not used. */
+    @Volatile
+    var cfClientId: String? = null
+        private set
+
+    @Volatile
+    var cfClientSecret: String? = null
+        private set
+
+    val cloudflareAccessEnabled: Boolean
+        get() = !cfClientId.isNullOrBlank() && !cfClientSecret.isNullOrBlank()
+
     private val _state = MutableStateFlow<SessionState>(SessionState.Loading)
     val state: StateFlow<SessionState> = _state.asStateFlow()
 
@@ -52,6 +64,8 @@ class SessionManager @Inject constructor(
     fun bootstrap() {
         serverUrl = storage.getString(SecureStorage.KEY_SERVER_URL)
         accessToken = storage.getString(SecureStorage.KEY_ACCESS_TOKEN)
+        cfClientId = storage.getString(SecureStorage.KEY_CF_CLIENT_ID)
+        cfClientSecret = storage.getString(SecureStorage.KEY_CF_CLIENT_SECRET)
         val user = storage.getString(SecureStorage.KEY_USER)
             ?.let { runCatching { json.decodeFromString<AuthUser>(it) }.getOrNull() }
 
@@ -92,10 +106,28 @@ class SessionManager @Inject constructor(
         }
     }
 
+    /** Stores (or, when either value is blank, clears) the Cloudflare Access service token. */
+    fun setCloudflareAccess(clientId: String?, clientSecret: String?) {
+        val id = clientId?.trim().orEmpty()
+        val secret = clientSecret?.trim().orEmpty()
+        if (id.isEmpty() || secret.isEmpty()) {
+            cfClientId = null
+            cfClientSecret = null
+            storage.remove(SecureStorage.KEY_CF_CLIENT_ID)
+            storage.remove(SecureStorage.KEY_CF_CLIENT_SECRET)
+        } else {
+            cfClientId = id
+            cfClientSecret = secret
+            storage.putString(SecureStorage.KEY_CF_CLIENT_ID, id)
+            storage.putString(SecureStorage.KEY_CF_CLIENT_SECRET, secret)
+        }
+    }
+
     /** Reverts to the no-server state (used when a setup-status probe fails during onboarding). */
     fun clearServer() {
         serverUrl = null
         storage.remove(SecureStorage.KEY_SERVER_URL)
+        setCloudflareAccess(null, null)
         _state.value = SessionState.NeedsServer
     }
 
