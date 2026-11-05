@@ -7,6 +7,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import com.bookorbit.core.model.LoginRequest
 import com.bookorbit.core.model.OidcCallbackResponse
 import com.bookorbit.core.model.OidcProviderPublic
+import com.bookorbit.core.model.RegisterRequest
 import com.bookorbit.core.model.SetupStatus
 import com.bookorbit.core.network.ApiService
 import retrofit2.HttpException
@@ -42,6 +43,18 @@ class AuthRepository @Inject constructor(
         if (!response.isSuccessful) throw HttpException(response)
         val configured = session.serverUrl ?: return null
         return httpsUpgradeOf(configured, response.raw().request.url)
+    }
+
+    /** Whether the server accepts self-registration. Any failure counts as "not open". */
+    suspend fun registrationOpen(): Boolean =
+        runCatching { api.getSetupStatus().allowRegistration }.getOrDefault(false)
+
+    /**
+     * Creates an account. The response carries no token, so the caller signs in afterwards (the
+     * sign-in limit is 5 per minute and registration is 3 per minute, so neither is retried here).
+     */
+    suspend fun register(username: String, name: String, email: String, password: String) {
+        api.register(RegisterRequest(username = username, name = name, email = email, password = password))
     }
 
     suspend fun login(username: String, password: String) {

@@ -30,6 +30,10 @@ class LoginViewModel @Inject constructor(
         val oidcLoadingSlug: String? = null,
         val error: UiText? = null,
         val providers: List<OidcProviderPublic> = emptyList(),
+        /** The server accepts self-registration, so the "New user" button is shown. */
+        val registrationOpen: Boolean = false,
+        /** The last failure came from Cloudflare Access, so the token can be fixed on the server screen. */
+        val cloudflareProblem: Boolean = false,
     )
 
     private val _ui = MutableStateFlow(UiState())
@@ -41,19 +45,29 @@ class LoginViewModel @Inject constructor(
         viewModelScope.launch {
             _ui.update { it.copy(providers = repo.oidcProviders()) }
         }
+        refreshRegistration()
+    }
+
+    /** Re-asks the server whether registration is open, so a server-side change shows up without reconfiguring. */
+    fun refreshRegistration() {
+        viewModelScope.launch {
+            val open = repo.registrationOpen()
+            _ui.update { it.copy(registrationOpen = open) }
+        }
     }
 
     /** A successful login flips SessionManager state to SignedIn, which swaps in the main shell. */
     fun login(username: String, password: String) {
         if (username.isBlank() || password.isEmpty()) return
-        _ui.update { it.copy(submitting = true, error = null) }
+        _ui.update { it.copy(submitting = true, error = null, cloudflareProblem = false) }
         viewModelScope.launch {
             try {
                 repo.login(username, password)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                _ui.update { it.copy(error = loginError(e)) }
+                val cloudflare = generateSequence<Throwable>(e) { it.cause }.any { it is CloudflareAccessException }
+                _ui.update { it.copy(error = loginError(e), cloudflareProblem = cloudflare) }
             } finally {
                 _ui.update { it.copy(submitting = false) }
             }

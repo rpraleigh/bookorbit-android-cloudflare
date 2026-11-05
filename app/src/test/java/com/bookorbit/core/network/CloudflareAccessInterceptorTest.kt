@@ -3,6 +3,7 @@ package com.bookorbit.core.network
 import com.bookorbit.core.auth.SessionManager
 import io.mockk.every
 import io.mockk.mockk
+import kotlinx.coroutines.launch
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.mockwebserver.MockResponse
@@ -126,6 +127,76 @@ class CloudflareAccessInterceptorTest {
         } catch (e: CloudflareAccessException) {
             assertFalse(e.credentialsConfigured)
         }
+    }
+
+    @Test
+    fun attachesHeadersToPostRequestsToo() {
+        server.enqueue(MockResponse().setResponseCode(201).setBody("{}"))
+        client().newCall(
+            Request.Builder().url(local("/api/v1/auth/register"))
+                .post(okhttp3.RequestBody.create(null, "{}")).build(),
+        ).execute().close()
+        val recorded = server.takeRequest()
+        assertEquals("POST", recorded.method)
+        assertEquals("id.access", recorded.getHeader("CF-Access-Client-Id"))
+        assertEquals("s3cret", recorded.getHeader("CF-Access-Client-Secret"))
+    }
+
+    @Test
+    fun htmlForbiddenOnApiPathIsTreatedAsAccessBlock() {
+        server.enqueue(MockResponse().setResponseCode(403).setHeader("Content-Type", "text/html; charset=utf-8").setBody("<html>Forbidden</html>"))
+        try {
+            client().newCall(Request.Builder().url(local("/api/v1/books")).build()).execute()
+            fail("expected CloudflareAccessException")
+        } catch (e: CloudflareAccessException) {
+            assertTrue(e.credentialsConfigured)
+        }
+    }
+
+    @Test
+    fun jsonForbiddenFromBookOrbitPassesThrough() {
+        server.enqueue(MockResponse().setResponseCode(403).setHeader("Content-Type", "application/json").setBody("{\"message\":\"Registration is not open\"}"))
+        val response = client().newCall(Request.Builder().url(local("/api/v1/auth/register")).build()).execute()
+        assertEquals(403, response.code)
+        response.close()
+    }
+
+    @Test
+    fun htmlOutsideApiPathPassesThrough() {
+        server.enqueue(MockResponse().setResponseCode(403).setHeader("Content-Type", "text/html").setBody("<html></html>"))
+        val response = client().newCall(Request.Builder().url(local("/some/page")).build()).execute()
+        assertEquals(403, response.code)
+        response.close()
+    }
+
+    @Test
+    fun rejectionIsReportedToEvents() {
+        val events = CloudflareAccessEvents()
+        val collected = mutableListOf<Boolean>()
+        val job = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Unconfined).launch {
+            events.rejections.collect { collected.add(it) }
+        }
+        server.enqueue(MockResponse().setResponseCode(403).setHeader("Content-Type", "text/html").setBody("<html></html>"))
+        val withEvents = OkHttpClient.Builder()
+            .addNetworkInterceptor(CloudflareAccessInterceptor(session, httpsOnly = false, events = events))
+            .build()
+        try {
+            withEvents.newCall(Request.Builder().url(local("/api/v1/books")).build()).execute()
+            fail("expected CloudflareAccessException")
+        } catch (_: CloudflareAccessException) {
+        }
+        job.cancel()
+        assertEquals(listOf(true), collected)
+    }
+
+    @Test
+    fun likelyAccessBlockNeedsStatusPathAndHtml() {
+        assertTrue(CloudflareAccessInterceptor.isLikelyAccessBlock("/api/v1/x", 401, "text/html"))
+        assertTrue(CloudflareAccessInterceptor.isLikelyAccessBlock("/api/v1/x", 403, "Text/HTML; charset=utf-8"))
+        assertFalse(CloudflareAccessInterceptor.isLikelyAccessBlock("/api/v1/x", 404, "text/html"))
+        assertFalse(CloudflareAccessInterceptor.isLikelyAccessBlock("/api/v1/x", 403, "application/json"))
+        assertFalse(CloudflareAccessInterceptor.isLikelyAccessBlock("/api/v1/x", 403, null))
+        assertFalse(CloudflareAccessInterceptor.isLikelyAccessBlock("/login", 403, "text/html"))
     }
 
     @Test

@@ -28,7 +28,24 @@ data class LoginResponse(val accessToken: String, val user: AuthUser)
 data class RefreshResponse(val accessToken: String)
 
 @Serializable
-data class SetupStatus(val needsSetup: Boolean)
+data class SetupStatus(
+    val needsSetup: Boolean,
+    /** True when the server lets people create their own account (`POST /auth/register`). */
+    val allowRegistration: Boolean = false,
+)
+
+/** `POST /auth/register` body. The server also enforces these limits; see [com.bookorbit.feature.auth.RegistrationRules]. */
+@Serializable
+data class RegisterRequest(
+    val username: String,
+    val name: String,
+    val email: String,
+    val password: String,
+)
+
+/** `POST /auth/register` response. It carries no token: the new user signs in afterwards. */
+@Serializable
+data class RegisterResponse(val id: Int, val username: String, val name: String? = null)
 
 @Serializable
 data class OidcProviderPublic(

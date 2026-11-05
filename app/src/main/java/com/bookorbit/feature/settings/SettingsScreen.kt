@@ -54,6 +54,9 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.bookorbit.BuildConfig
+import com.bookorbit.feature.auth.CloudflareAccessDialog
+import com.bookorbit.feature.auth.CloudflareAccessViewModel
+import com.bookorbit.feature.auth.CloudflareDialogReason
 import com.bookorbit.core.settings.ThemeMode
 import com.bookorbit.core.settings.ReaderInterface
 import com.bookorbit.feature.player.ProgressBarMode
@@ -80,6 +83,10 @@ fun SettingsScreen(vm: SettingsViewModel = hiltViewModel()) {
     val appContext = androidx.compose.ui.platform.LocalContext.current
     val downloadLocationAccessible by vm.downloadLocationAccessible.collectAsStateWithLifecycle()
     val appInfo by vm.appInfo.collectAsStateWithLifecycle()
+
+    val cloudflareVm: CloudflareAccessViewModel = hiltViewModel()
+    val cloudflareClientId by cloudflareVm.clientId.collectAsStateWithLifecycle()
+    var showCloudflareDialog by remember { mutableStateOf(false) }
 
     val snackbarHostState = remember { SnackbarHostState() }
     var confirmClearDownloads by remember { mutableStateOf(false) }
@@ -218,6 +225,18 @@ fun SettingsScreen(vm: SettingsViewModel = hiltViewModel()) {
                     trailing = { Switch(checked = trustUserCas, enabled = vm.certificateHost.isNotBlank(), onCheckedChange = vm::setTrustUserCas) },
                 )
             }
+            item {
+                SettingsRow(
+                    title = stringResource(R.string.cf_access_settings_title),
+                    subtitle = cloudflareClientId?.let { stringResource(R.string.cf_access_settings_set, it) }
+                        ?: stringResource(R.string.cf_access_settings_unset),
+                    trailing = {
+                        TextButton(onClick = { showCloudflareDialog = true }) {
+                            Text(stringResource(if (cloudflareClientId != null) R.string.cf_access_change else R.string.cf_access_add))
+                        }
+                    },
+                )
+            }
             item { HorizontalDivider() }
 
             item { SectionHeader(stringResource(R.string.downloads)) }
@@ -348,6 +367,14 @@ fun SettingsScreen(vm: SettingsViewModel = hiltViewModel()) {
                 }
             }
         }
+    }
+
+    if (showCloudflareDialog) {
+        CloudflareAccessDialog(
+            reason = CloudflareDialogReason.MANAGE,
+            onDismiss = { showCloudflareDialog = false },
+            vm = cloudflareVm,
+        )
     }
 
     if (confirmClearDownloads) {

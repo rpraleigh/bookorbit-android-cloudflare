@@ -22,6 +22,8 @@ import com.bookorbit.core.model.CollectionWithMembership
 import com.bookorbit.core.model.FileProgress
 import com.bookorbit.core.model.Library
 import com.bookorbit.core.model.LoginRequest
+import com.bookorbit.core.model.RegisterRequest
+import com.bookorbit.core.model.RegisterResponse
 import com.bookorbit.core.model.LoginResponse
 import com.bookorbit.core.model.NamedResult
 import com.bookorbit.core.model.OidcCallbackRequest
@@ -69,6 +71,9 @@ interface ApiService {
     // --- Auth ---
     @POST("auth/login")
     suspend fun login(@Body body: LoginRequest): LoginResponse
+
+    @POST("auth/register")
+    suspend fun register(@Body body: RegisterRequest): RegisterResponse
 
     @POST("auth/logout")
     suspend fun logout()

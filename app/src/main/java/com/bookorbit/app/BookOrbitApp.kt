@@ -14,13 +14,16 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.bookorbit.core.auth.SessionState
+import com.bookorbit.feature.auth.CloudflareAccessPrompt
 import com.bookorbit.feature.auth.LoginScreen
+import com.bookorbit.feature.auth.RegisterScreen
 import com.bookorbit.feature.auth.ServerSetupScreen
 import com.bookorbit.ui.LocalImageUrls
 
 private object AuthRoutes {
     const val SERVER_SETUP = "server-setup"
     const val LOGIN = "login"
+    const val REGISTER = "register"
 }
 
 /**
@@ -35,8 +38,12 @@ fun BookOrbitApp() {
 
     when (val s = state) {
         SessionState.Loading -> LoadingScreen()
-        is SessionState.SignedIn -> CompositionLocalProvider(LocalImageUrls provides rootVm.imageUrls) {
-            AuthenticatedApp(user = s.user, onSignOut = rootVm::signOut)
+        is SessionState.SignedIn -> {
+            CompositionLocalProvider(LocalImageUrls provides rootVm.imageUrls) {
+                AuthenticatedApp(user = s.user, onSignOut = rootVm::signOut)
+            }
+            // Offers to fix the Cloudflare Access token whenever Access turns a request away.
+            CloudflareAccessPrompt()
         }
         else -> AuthFlow(startAtServerSetup = s is SessionState.NeedsServer)
     }
@@ -59,7 +66,13 @@ private fun AuthFlow(startAtServerSetup: Boolean) {
             )
         }
         composable(AuthRoutes.LOGIN) {
-            LoginScreen(onChangeServer = { navController.navigate(AuthRoutes.SERVER_SETUP) })
+            LoginScreen(
+                onChangeServer = { navController.navigate(AuthRoutes.SERVER_SETUP) },
+                onRegister = { navController.navigate(AuthRoutes.REGISTER) },
+            )
+        }
+        composable(AuthRoutes.REGISTER) {
+            RegisterScreen(onBack = { navController.popBackStack() })
         }
     }
 }

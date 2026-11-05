@@ -31,6 +31,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -49,6 +50,7 @@ import com.bookorbit.ui.components.BrandLogo
 @Composable
 fun LoginScreen(
     onChangeServer: () -> Unit,
+    onRegister: () -> Unit,
     modifier: Modifier = Modifier,
     vm: LoginViewModel = hiltViewModel(),
 ) {
@@ -62,6 +64,9 @@ fun LoginScreen(
     ) { result -> vm.completeOidc(result.data) }
 
     fun submit() = vm.login(username, password)
+
+    // Re-check on every visit (including coming back from the register screen).
+    LaunchedEffect(Unit) { vm.refreshRegistration() }
 
     Column(
         modifier = modifier
@@ -130,6 +135,12 @@ fun LoginScreen(
                 textAlign = TextAlign.Center,
                 modifier = Modifier.fillMaxWidth(),
             )
+            if (ui.cloudflareProblem) {
+                TextButton(
+                    onClick = onChangeServer,
+                    modifier = Modifier.align(Alignment.CenterHorizontally),
+                ) { Text(stringResource(R.string.cf_access_fix_token)) }
+            }
         }
 
         Spacer(Modifier.height(16.dp))
@@ -143,6 +154,15 @@ fun LoginScreen(
             } else {
                 Text(stringResource(R.string.sign_in))
             }
+        }
+
+        if (ui.registrationOpen) {
+            Spacer(Modifier.height(12.dp))
+            OutlinedButton(
+                onClick = onRegister,
+                enabled = !ui.submitting,
+                modifier = Modifier.fillMaxWidth(),
+            ) { Text(stringResource(R.string.register_new_user)) }
         }
 
         if (ui.providers.isNotEmpty()) {

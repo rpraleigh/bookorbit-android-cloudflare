@@ -27,13 +27,22 @@ class CloudflareAccessException(val credentialsConfigured: Boolean) :
  * When Access is not satisfied it answers with a redirect to `<team>.cloudflareaccess.com`; that is
  * turned into a [CloudflareAccessException] so callers get a clear error instead of an HTML login
  * page that fails JSON parsing.
+ *
+ * Cloudflare may instead answer a rejected or expired token with a 401/403 HTML page. BookOrbit
+ * itself only answers API errors as JSON, so an HTML 401/403 on an `/api/` path is treated the same
+ * way (see [isLikelyAccessBlock]). That second signal is a heuristic and has not been confirmed
+ * against a real rejected token; verify it before relying on it.
+ *
+ * Each rejection is also reported to [CloudflareAccessEvents] so the app can offer to fix the token.
  */
 @Singleton
 class CloudflareAccessInterceptor internal constructor(
     private val session: SessionManager,
-    private val httpsOnly: Boolean,
+    private val httpsOnly: Boolean = true,
+    private val events: CloudflareAccessEvents? = null,
 ) : Interceptor {
-    @Inject constructor(session: SessionManager) : this(session, httpsOnly = true)
+    @Inject constructor(session: SessionManager, events: CloudflareAccessEvents) :
+        this(session, httpsOnly = true, events = events)
 
     override fun intercept(chain: Interceptor.Chain): Response {
         val request = chain.request()
@@ -59,8 +68,14 @@ class CloudflareAccessInterceptor internal constructor(
             val target = response.header("Location")?.let { request.url.resolve(it) }
             if (target != null && isAccessLoginHost(target.host)) {
                 response.close()
+                events?.notifyRejected(configured)
                 throw CloudflareAccessException(configured)
             }
+        }
+        if (isLikelyAccessBlock(request.url.encodedPath, response.code, response.header("Content-Type"))) {
+            response.close()
+            events?.notifyRejected(configured)
+            throw CloudflareAccessException(configured)
         }
         return response
     }
@@ -68,6 +83,15 @@ class CloudflareAccessInterceptor internal constructor(
     companion object {
         const val HEADER_CLIENT_ID = "CF-Access-Client-Id"
         const val HEADER_CLIENT_SECRET = "CF-Access-Client-Secret"
+
+        /**
+         * True for a 401/403 HTML page on an API path. BookOrbit's own API errors are JSON, so an HTML
+         * error there came from something in front of it, which here means Cloudflare Access.
+         */
+        internal fun isLikelyAccessBlock(encodedPath: String, status: Int, contentType: String?): Boolean =
+            (status == 401 || status == 403) &&
+                encodedPath.contains("/api/") &&
+                contentType?.trimStart()?.startsWith("text/html", ignoreCase = true) == true
 
         internal fun isAccessLoginHost(host: String): Boolean =
             host.equals("cloudflareaccess.com", ignoreCase = true) ||

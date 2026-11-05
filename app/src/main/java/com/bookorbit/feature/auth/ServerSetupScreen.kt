@@ -134,6 +134,12 @@ fun ServerSetupScreen(
             style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
             color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant,
         )
+        Spacer(Modifier.height(4.dp))
+        Text(
+            stringResource(R.string.cf_access_get_token),
+            style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
+            color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant,
+        )
         Spacer(Modifier.height(8.dp))
         OutlinedTextField(
             value = cfClientId,

@@ -1,6 +1,6 @@
 <!--
-  Adaptive-icon background: the warm dark diagonal gradient from the web app icon
-  (client/public/pwa-icon-source.svg). Full-bleed 108x108 so it fills any launcher mask shape.
+  Adaptive-icon background for BookOrbit PRM-CF: deep teal, lighter at the top left. Full-bleed
+  108x108 so it fills any launcher mask shape. Original artwork for this app.
 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:aapt="http://schemas.android.com/aapt"
@@ -16,8 +16,8 @@
                 android:startY="0"
                 android:endX="108"
                 android:endY="108">
-                <item android:offset="0.0" android:color="#FF2C2C22" />
-                <item android:offset="1.0" android:color="#FF1A1A10" />
+                <item android:offset="0.0" android:color="#FF17525A" />
+                <item android:offset="1.0" android:color="#FF0A2429" />
             </gradient>
         </aapt:attr>
     </path>
